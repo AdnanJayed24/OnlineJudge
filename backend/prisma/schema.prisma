@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int          @id @default(autoincrement())
+  email        String       @unique
+  username     String       @unique
+  passwordHash String       @map("password_hash")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  problems     Problem[]
+  submissions  Submission[]
+
+  @@map("users")
+}
+
+model Problem {
+  id            Int          @id @default(autoincrement())
+  title         String
+  slug          String       @unique
+  statement     String
+  timeLimitMs   Int          @default(1000) @map("time_limit_ms")
+  memoryLimitMb Int          @default(256) @map("memory_limit_mb")
+  createdBy     Int?         @map("created_by")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  creator       User?        @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  submissions   Submission[]
+
+  @@map("problems")
+}
+
+model Submission {
+  id         Int              @id @default(autoincrement())
+  userId     Int              @map("user_id")
+  problemId  Int              @map("problem_id")
+  language   String
+  sourceCode String           @map("source_code")
+  status     String           @default("QUEUED")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem    Problem          @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@map("submissions")
+}
