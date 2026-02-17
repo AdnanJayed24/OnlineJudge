@@ -14,4 +14,13 @@ async function authGuard(req, reply) {
   }
 }
 
-module.exports = { authGuard };
+async function adminGuard(req, reply) {
+  const result = await authGuard(req, reply);
+  if (result) return result;
+
+  if (req.user.role !== "admin") {
+    return reply.code(403).send({ error: "admin only" });
+  }
+}
+
+module.exports = { authGuard, adminGuard };

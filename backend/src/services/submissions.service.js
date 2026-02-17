@@ -1,4 +1,4 @@
-const { prisma } = require("../../db/prisma");
+const { prisma } = require("../db/prisma");
 
 async function createSubmission({ userId, problemId, language, sourceCode }) {
   return prisma.submission.create({
@@ -41,4 +41,16 @@ async function getSubmissionById(id) {
   });
 }
 
-module.exports = { createSubmission, listUserSubmissions, getSubmissionById };
+async function getProblemById(id) {
+  return prisma.problem.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+}
+
+module.exports = {
+  createSubmission,
+  listUserSubmissions,
+  getSubmissionById,
+  getProblemById,
+};

@@ -1,5 +1,5 @@
-const { prisma } = require("../../db/prisma");
-const { getIO } = require("../../sockets/io");
+const { prisma } = require("../db/prisma");
+const { getIO } = require("../sockets/io");
 
 async function emitSubmissionUpdate(submissionId) {
   const io = getIO();

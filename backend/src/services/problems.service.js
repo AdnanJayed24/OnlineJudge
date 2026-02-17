@@ -1,4 +1,4 @@
-const { prisma } = require("../../db/prisma");
+const { prisma } = require("../db/prisma");
 
 async function createProblem({ title, slug, statement, timeLimitMs, memoryLimitMb, createdBy }) {
   try {
@@ -41,4 +41,38 @@ async function getProblemById(id) {
   });
 }
 
-module.exports = { createProblem, listProblems, getProblemById };
+async function createTestcase({ problemId, input, expectedOutput, isHidden }) {
+  return prisma.testcase.create({
+    data: {
+      problemId,
+      input,
+      expectedOutput,
+      isHidden: Boolean(isHidden),
+    },
+  });
+}
+
+async function listProblemTestcases(problemId, includeHidden) {
+  return prisma.testcase.findMany({
+    where: {
+      problemId,
+      ...(includeHidden ? {} : { isHidden: false }),
+    },
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      input: true,
+      expectedOutput: includeHidden,
+      isHidden: true,
+      createdAt: true,
+    },
+  });
+}
+
+module.exports = {
+  createProblem,
+  listProblems,
+  getProblemById,
+  createTestcase,
+  listProblemTestcases,
+};

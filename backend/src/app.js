@@ -1,11 +1,13 @@
 const Fastify = require("fastify");
-const authRoutes = require("./modules/auth/auth.routes");
-const problemsRoutes = require("./modules/problems/problems.routes");
-const submissionsRoutes = require("./modules/submissions/submissions.routes");
+const fastifyCookie = require("@fastify/cookie");
+const authRoutes = require("./routes/auth.routes");
+const problemsRoutes = require("./routes/problems.routes");
+const submissionsRoutes = require("./routes/submissions.routes");
 const { prisma } = require("./db/prisma");
 
 function buildApp() {
   const app = Fastify({ logger: true });
+  app.register(fastifyCookie);
 
   app.get("/health", async () => ({ ok: true }));
 
