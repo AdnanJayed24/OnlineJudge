@@ -41,6 +41,12 @@ async function getSubmissionById(id) {
   });
 }
 
+async function getSubmissionResultBySubmissionId(submissionId) {
+  return prisma.submissionResult.findUnique({
+    where: { submissionId },
+  });
+}
+
 async function getProblemById(id) {
   return prisma.problem.findUnique({
     where: { id },
@@ -52,5 +58,6 @@ module.exports = {
   createSubmission,
   listUserSubmissions,
   getSubmissionById,
+  getSubmissionResultBySubmissionId,
   getProblemById,
 };

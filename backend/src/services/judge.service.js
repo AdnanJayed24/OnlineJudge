@@ -14,6 +14,13 @@ async function emitSubmissionUpdate(submissionId) {
       language: true,
       status: true,
       createdAt: true,
+      result: {
+        select: {
+          verdict: true,
+          runtimeMs: true,
+          detailsJson: true,
+        },
+      },
     },
   });
 
@@ -21,33 +28,143 @@ async function emitSubmissionUpdate(submissionId) {
   io.to(`submission:${submissionId}`).emit("submission:update", submission);
 }
 
-function scheduleFakeJudge(submissionId, logger) {
-  setTimeout(async () => {
-    try {
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: { status: "RUNNING" },
-      });
-      await emitSubmissionUpdate(submissionId);
-    } catch (error) {
-      logger.error({ error, submissionId }, "failed to set RUNNING status");
-    }
-  }, 1000);
-
-  setTimeout(async () => {
-    const verdicts = ["ACCEPTED", "WRONG_ANSWER", "RUNTIME_ERROR"];
-    const finalStatus = verdicts[Math.floor(Math.random() * verdicts.length)];
-
-    try {
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: { status: finalStatus },
-      });
-      await emitSubmissionUpdate(submissionId);
-    } catch (error) {
-      logger.error({ error, submissionId }, "failed to set final status");
-    }
-  }, 3000);
+function normalizeOutput(value) {
+  return String(value ?? "").trim().replace(/\r\n/g, "\n");
 }
 
-module.exports = { scheduleFakeJudge, emitSubmissionUpdate };
+function getOutputMarkersFromSource(sourceCode) {
+  const regex = /^\s*\/\/\s*OUTPUT\s*:\s*(.*)$/gm;
+  const markers = [];
+  let match;
+  while ((match = regex.exec(sourceCode)) !== null) {
+    markers.push(match[1]);
+  }
+  return markers;
+}
+
+async function runDeterministicJudge(submissionId, logger) {
+  try {
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: { status: "RUNNING" },
+    });
+    await emitSubmissionUpdate(submissionId);
+
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        problem: {
+          include: {
+            testcases: {
+              orderBy: { id: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      return;
+    }
+
+    const testcases = submission.problem?.testcases || [];
+    if (testcases.length === 0) {
+      const verdict = "RUNTIME_ERROR";
+      await prisma.submissionResult.upsert({
+        where: { submissionId },
+        update: {
+          verdict,
+          runtimeMs: 0,
+          detailsJson: [{ status: "NO_TESTCASES" }],
+        },
+        create: {
+          submissionId,
+          verdict,
+          runtimeMs: 0,
+          detailsJson: [{ status: "NO_TESTCASES" }],
+        },
+      });
+
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: { status: verdict },
+      });
+      await emitSubmissionUpdate(submissionId);
+      return;
+    }
+
+    const markers = getOutputMarkersFromSource(submission.sourceCode);
+    const details = [];
+    let verdict = "ACCEPTED";
+    const startedAt = Date.now();
+
+    for (let index = 0; index < testcases.length; index += 1) {
+      const testcase = testcases[index];
+      const producedOutput = markers[index] || "";
+      const expectedOutput = testcase.expectedOutput;
+      const passed =
+        normalizeOutput(producedOutput) === normalizeOutput(expectedOutput);
+
+      details.push({
+        testcaseId: testcase.id,
+        index: index + 1,
+        status: passed ? "PASSED" : "FAILED",
+      });
+
+      if (!passed) {
+        verdict = "WRONG_ANSWER";
+        break;
+      }
+    }
+
+    const runtimeMs = Date.now() - startedAt;
+    await prisma.submissionResult.upsert({
+      where: { submissionId },
+      update: { verdict, runtimeMs, detailsJson: details },
+      create: { submissionId, verdict, runtimeMs, detailsJson: details },
+    });
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: { status: verdict },
+    });
+    await emitSubmissionUpdate(submissionId);
+  } catch (error) {
+    logger.error({ error, submissionId }, "judge execution failed");
+    try {
+      const verdict = "RUNTIME_ERROR";
+      await prisma.submissionResult.upsert({
+        where: { submissionId },
+        update: {
+          verdict,
+          runtimeMs: 0,
+          detailsJson: [{ status: "JUDGE_EXCEPTION" }],
+        },
+        create: {
+          submissionId,
+          verdict,
+          runtimeMs: 0,
+          detailsJson: [{ status: "JUDGE_EXCEPTION" }],
+        },
+      });
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: { status: verdict },
+      });
+      await emitSubmissionUpdate(submissionId);
+    } catch (innerError) {
+      logger.error(
+        { innerError, submissionId },
+        "failed to persist runtime error verdict"
+      );
+    }
+  }
+}
+
+function scheduleSubmissionJudge(submissionId, logger) {
+  setTimeout(() => {
+    runDeterministicJudge(submissionId, logger);
+  }, 300);
+}
+
+module.exports = { scheduleSubmissionJudge, emitSubmissionUpdate };
