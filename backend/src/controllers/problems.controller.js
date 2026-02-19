@@ -4,13 +4,12 @@ const {
   getProblemById,
   createTestcase,
   listProblemTestcases,
+  fetchCodeforcesProblems,
+  fetchCodeforcesProblemByKey,
 } = require("../services/problems.service");
 
 async function create(req, reply) {
-  const { title, slug, statement, timeLimitMs, memoryLimitMb } = req.body || {};
-  if (!title || !slug || !statement) {
-    return reply.code(400).send({ error: "title, slug, statement required" });
-  }
+  const { title, slug, statement, timeLimitMs, memoryLimitMb } = req.body;
 
   try {
     return await createProblem({
@@ -37,9 +36,6 @@ async function list() {
 
 async function getById(req, reply) {
   const id = Number(req.params.id);
-  if (!Number.isInteger(id)) {
-    return reply.code(400).send({ error: "invalid id" });
-  }
 
   const problem = await getProblemById(id);
   if (!problem) {
@@ -51,16 +47,8 @@ async function getById(req, reply) {
 
 async function createProblemTestcase(req, reply) {
   const problemId = Number(req.params.id);
-  if (!Number.isInteger(problemId)) {
-    return reply.code(400).send({ error: "invalid id" });
-  }
 
-  const { input, expectedOutput, isHidden } = req.body || {};
-  if (typeof input !== "string" || typeof expectedOutput !== "string") {
-    return reply
-      .code(400)
-      .send({ error: "input and expectedOutput must be strings" });
-  }
+  const { input, expectedOutput, isHidden } = req.body;
 
   const problem = await getProblemById(problemId);
   if (!problem) {
@@ -78,9 +66,6 @@ async function createProblemTestcase(req, reply) {
 
 async function listTestcases(req, reply) {
   const problemId = Number(req.params.id);
-  if (!Number.isInteger(problemId)) {
-    return reply.code(400).send({ error: "invalid id" });
-  }
 
   const problem = await getProblemById(problemId);
   if (!problem) {
@@ -92,4 +77,38 @@ async function listTestcases(req, reply) {
   return { items };
 }
 
-module.exports = { create, list, getById, createProblemTestcase, listTestcases };
+async function listCodeforces(req, reply) {
+  const limit = Number(req.query.limit || 100);
+  const search = String(req.query.search || "");
+
+  try {
+    const items = await fetchCodeforcesProblems({ limit, search });
+    return { items };
+  } catch (error) {
+    req.log.error(error);
+    return reply.code(502).send({ error: "failed to fetch codeforces problems" });
+  }
+}
+
+async function getCodeforcesByKey(req, reply) {
+  try {
+    const problem = await fetchCodeforcesProblemByKey(req.params.key);
+    if (!problem) {
+      return reply.code(404).send({ error: "problem not found" });
+    }
+    return problem;
+  } catch (error) {
+    req.log.error(error);
+    return reply.code(502).send({ error: "failed to fetch codeforces problem" });
+  }
+}
+
+module.exports = {
+  create,
+  list,
+  getById,
+  createProblemTestcase,
+  listTestcases,
+  listCodeforces,
+  getCodeforcesByKey,
+};

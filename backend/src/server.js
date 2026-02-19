@@ -12,7 +12,10 @@ async function start() {
     await app.listen({ port: env.port, host: "0.0.0.0" });
 
     const io = new Server(app.server, {
-      cors: { origin: "*" },
+      cors: {
+        origin: env.frontendOrigin,
+        credentials: true,
+      },
     });
 
     io.on("connection", (socket) => {

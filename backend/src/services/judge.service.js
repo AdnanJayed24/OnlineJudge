@@ -13,6 +13,9 @@ async function emitSubmissionUpdate(submissionId) {
       problemId: true,
       language: true,
       status: true,
+      provider: true,
+      externalSubmissionId: true,
+      externalVerdict: true,
       createdAt: true,
       result: {
         select: {
@@ -40,6 +43,59 @@ function getOutputMarkersFromSource(sourceCode) {
     markers.push(match[1]);
   }
   return markers;
+}
+
+async function markSubmissionRuntimeError(
+  submissionId,
+  reason = "JUDGE_EXCEPTION"
+) {
+  const verdict = "RUNTIME_ERROR";
+  await prisma.submissionResult.upsert({
+    where: { submissionId },
+    update: {
+      verdict,
+      runtimeMs: 0,
+      detailsJson: [{ status: reason }],
+    },
+    create: {
+      submissionId,
+      verdict,
+      runtimeMs: 0,
+      detailsJson: [{ status: reason }],
+    },
+  });
+  await prisma.submission.update({
+    where: { id: submissionId },
+    data: { status: verdict },
+  });
+  await emitSubmissionUpdate(submissionId);
+}
+
+async function markExternalSubmissionFinal({
+  submissionId,
+  verdict,
+  runtimeMs = null,
+  detailsJson = null,
+}) {
+  await prisma.submissionResult.upsert({
+    where: { submissionId },
+    update: {
+      verdict,
+      runtimeMs,
+      detailsJson,
+    },
+    create: {
+      submissionId,
+      verdict,
+      runtimeMs,
+      detailsJson,
+    },
+  });
+  await prisma.submission.update({
+    where: { id: submissionId },
+    data: { status: verdict },
+  });
+  await emitSubmissionUpdate(submissionId);
 }
 
 async function runDeterministicJudge(submissionId, logger) {
@@ -94,9 +150,20 @@ async function runDeterministicJudge(submissionId, logger) {
     }
 
     const markers = getOutputMarkersFromSource(submission.sourceCode);
-    const details = [];
+    const details = testcases.map((testcase, index) => ({
+      testcaseId: testcase.id,
+      index: index + 1,
+      status: "QUEUED",
+    }));
     let verdict = "ACCEPTED";
     const startedAt = Date.now();
+
+    await prisma.submissionResult.upsert({
+      where: { submissionId },
+      update: { verdict: "RUNNING", runtimeMs: null, detailsJson: details },
+      create: { submissionId, verdict: "RUNNING", runtimeMs: null, detailsJson: details },
+    });
+    await emitSubmissionUpdate(submissionId);
 
     for (let index = 0; index < testcases.length; index += 1) {
       const testcase = testcases[index];
@@ -105,11 +172,21 @@ async function runDeterministicJudge(submissionId, logger) {
       const passed =
         normalizeOutput(producedOutput) === normalizeOutput(expectedOutput);
 
-      details.push({
+      details[index] = {
         testcaseId: testcase.id,
         index: index + 1,
         status: passed ? "PASSED" : "FAILED",
+      };
+
+      await prisma.submissionResult.update({
+        where: { submissionId },
+        data: {
+          verdict: "RUNNING",
+          runtimeMs: Date.now() - startedAt,
+          detailsJson: details,
+        },
       });
+      await emitSubmissionUpdate(submissionId);
 
       if (!passed) {
         verdict = "WRONG_ANSWER";
@@ -132,26 +209,7 @@ async function runDeterministicJudge(submissionId, logger) {
   } catch (error) {
     logger.error({ error, submissionId }, "judge execution failed");
     try {
-      const verdict = "RUNTIME_ERROR";
-      await prisma.submissionResult.upsert({
-        where: { submissionId },
-        update: {
-          verdict,
-          runtimeMs: 0,
-          detailsJson: [{ status: "JUDGE_EXCEPTION" }],
-        },
-        create: {
-          submissionId,
-          verdict,
-          runtimeMs: 0,
-          detailsJson: [{ status: "JUDGE_EXCEPTION" }],
-        },
-      });
-      await prisma.submission.update({
-        where: { id: submissionId },
-        data: { status: verdict },
-      });
-      await emitSubmissionUpdate(submissionId);
+      await markSubmissionRuntimeError(submissionId, "JUDGE_EXCEPTION");
     } catch (innerError) {
       logger.error(
         { innerError, submissionId },
@@ -167,4 +225,10 @@ function scheduleSubmissionJudge(submissionId, logger) {
   }, 300);
 }
 
-module.exports = { scheduleSubmissionJudge, emitSubmissionUpdate };
+module.exports = {
+  scheduleSubmissionJudge,
+  emitSubmissionUpdate,
+  runDeterministicJudge,
+  markSubmissionRuntimeError,
+  markExternalSubmissionFinal,
+};

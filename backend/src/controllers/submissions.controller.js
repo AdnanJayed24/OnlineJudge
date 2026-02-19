@@ -4,23 +4,32 @@ const {
   getSubmissionById,
   getSubmissionResultBySubmissionId,
   getProblemById,
+  getOrCreateRemoteProblem,
 } = require("../services/submissions.service");
 const {
-  scheduleSubmissionJudge,
   emitSubmissionUpdate,
+  markSubmissionRuntimeError,
+  scheduleSubmissionJudge,
 } = require("../services/judge.service");
+const { enqueueSubmissionJob } = require("../queue/submission.queue");
 
-async function create(req, reply) {
-  const { problemId, language, sourceCode } = req.body || {};
-  if (!problemId || !language || !sourceCode) {
-    return reply
-      .code(400)
-      .send({ error: "problemId, language, sourceCode required" });
+async function createWithProvider(req, reply, providerName) {
+  const { problemId, language, sourceCode, remoteProblemKey } = req.body;
+  const provider = providerName || req.body.provider || "local";
+  let numericProblemId;
+
+  if (provider !== "codeforces") {
+    return reply.code(400).send({ error: "Only codeforces provider is allowed" });
   }
 
-  const numericProblemId = Number(problemId);
-  if (!Number.isInteger(numericProblemId)) {
-    return reply.code(400).send({ error: "invalid problemId" });
+  if (provider === "codeforces") {
+    if (!remoteProblemKey) {
+      return reply.code(400).send({ error: "remoteProblemKey is required for codeforces provider" });
+    }
+    const remoteProblem = await getOrCreateRemoteProblem(remoteProblemKey);
+    numericProblemId = remoteProblem.id;
+  } else {
+    numericProblemId = Number(problemId);
   }
 
   const problem = await getProblemById(numericProblemId);
@@ -33,11 +42,34 @@ async function create(req, reply) {
     problemId: numericProblemId,
     language,
     sourceCode,
+    provider,
   });
 
   await emitSubmissionUpdate(submission.id);
-  scheduleSubmissionJudge(submission.id, req.log);
+  try {
+    await enqueueSubmissionJob(submission.id, provider, {
+      executionMeta:
+        provider === "codeforces" && req.body.remoteProblemKey
+          ? { remoteProblemKey: req.body.remoteProblemKey }
+          : {},
+    });
+  } catch (error) {
+    req.log.error({ error, submissionId: submission.id }, "queue enqueue failed, using local fallback");
+    if (provider === "local") {
+      scheduleSubmissionJudge(submission.id, req.log);
+    } else {
+      await markSubmissionRuntimeError(submission.id, "QUEUE_UNAVAILABLE");
+    }
+  }
   return submission;
+}
+
+async function create(req, reply) {
+  return createWithProvider(req, reply, req.body.provider || "local");
+}
+
+async function createCodeforces(req, reply) {
+  return createWithProvider(req, reply, "codeforces");
 }
 
 async function list(req) {
@@ -47,9 +79,6 @@ async function list(req) {
 
 async function getById(req, reply) {
   const id = Number(req.params.id);
-  if (!Number.isInteger(id)) {
-    return reply.code(400).send({ error: "invalid id" });
-  }
 
   const submission = await getSubmissionById(id);
   if (!submission) {
@@ -65,9 +94,6 @@ async function getById(req, reply) {
 
 async function getResult(req, reply) {
   const id = Number(req.params.id);
-  if (!Number.isInteger(id)) {
-    return reply.code(400).send({ error: "invalid id" });
-  }
 
   const submission = await getSubmissionById(id);
   if (!submission) {
@@ -86,4 +112,4 @@ async function getResult(req, reply) {
   return result;
 }
 
-module.exports = { create, list, getById, getResult };
+module.exports = { create, createCodeforces, list, getById, getResult };

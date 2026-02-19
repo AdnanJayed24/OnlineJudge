@@ -6,15 +6,19 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "worker": "node src/workers/submission.worker.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^10.0.1",
     "@prisma/client": "^6.3.1",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.15.0",
     "dotenv": "^17.3.1",
     "fastify": "^5.7.4",
+    "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.3",
     "socket.io": "^4.8.1"
   },

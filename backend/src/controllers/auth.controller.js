@@ -6,12 +6,13 @@ const {
 } = require("../services/auth.service");
 
 const REFRESH_COOKIE_NAME = "refreshToken";
+const { env } = require("../config/env");
 
 function getRefreshCookieOptions() {
   return {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: env.nodeEnv === "production",
     path: "/auth",
   };
 }
@@ -28,10 +29,7 @@ function clearRefreshTokenCookie(reply) {
 }
 
 async function register(req, reply) {
-  const { email, username, password } = req.body || {};
-  if (!email || !username || !password) {
-    return reply.code(400).send({ error: "email, username, password required" });
-  }
+  const { email, username, password } = req.body;
 
   try {
     const result = await registerUser({ email, username, password });
@@ -47,10 +45,7 @@ async function register(req, reply) {
 }
 
 async function login(req, reply) {
-  const { email, password } = req.body || {};
-  if (!email || !password) {
-    return reply.code(400).send({ error: "email and password required" });
-  }
+  const { email, password } = req.body;
 
   try {
     const result = await loginUser({ email, password });
