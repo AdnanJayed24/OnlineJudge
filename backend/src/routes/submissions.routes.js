@@ -11,6 +11,27 @@ const {
 } = require("../schemas/submissions.schema");
 
 async function submissionsRoutes(fastify) {
+  fastify.get(
+    "/providers/codeforces/health",
+    {
+      preHandler: authGuard,
+      schema: {
+        response: {
+          ...commonErrorResponses,
+          200: {
+            type: "object",
+            required: ["ok", "mode"],
+            properties: {
+              ok: { type: "boolean" },
+              mode: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    submissionsController.codeforcesHealth
+  );
+
   fastify.post(
     "/",
     {

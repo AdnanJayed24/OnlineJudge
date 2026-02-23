@@ -12,6 +12,7 @@ const {
   scheduleSubmissionJudge,
 } = require("../services/judge.service");
 const { enqueueSubmissionJob } = require("../queue/submission.queue");
+const { checkCodeforcesSession } = require("../services/codeforces.service");
 
 async function createWithProvider(req, reply, providerName) {
   const { problemId, language, sourceCode, remoteProblemKey } = req.body;
@@ -112,4 +113,23 @@ async function getResult(req, reply) {
   return result;
 }
 
-module.exports = { create, createCodeforces, list, getById, getResult };
+async function codeforcesHealth(req, reply) {
+  try {
+    return await checkCodeforcesSession();
+  } catch (error) {
+    req.log.error({ error }, "codeforces session check failed");
+    return reply.code(502).send({
+      ok: false,
+      error: error.message || "CODEFORCES_SESSION_CHECK_FAILED",
+    });
+  }
+}
+
+module.exports = {
+  create,
+  createCodeforces,
+  list,
+  getById,
+  getResult,
+  codeforcesHealth,
+};

@@ -18,6 +18,12 @@ export async function me() {
   return response.data.user;
 }
 
+export async function refresh() {
+  const response = await apiClient.post("/auth/refresh");
+  setAccessToken(response.data.accessToken);
+  return response.data.user;
+}
+
 export async function logout() {
   await apiClient.post("/auth/logout");
   clearAccessToken();

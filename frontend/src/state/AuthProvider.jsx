@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { login, logout, me, register } from "../lib/authApi";
+import { login, logout, me, refresh, register } from "../lib/authApi";
 import { connectSocket, disconnectSocket } from "../lib/socketClient";
 
 const AuthContext = createContext(null);
@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
 
     async function bootstrap() {
       try {
+        await refresh();
         const currentUser = await me();
         if (mounted) {
           setUser(currentUser);

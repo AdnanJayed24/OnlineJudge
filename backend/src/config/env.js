@@ -11,6 +11,7 @@ const env = {
   codeforcesHandleOrEmail:
     process.env.CODEFORCES_HANDLE_OR_EMAIL || process.env.CODEFORCES_HANDLE || "",
   codeforcesPassword: process.env.CODEFORCES_PASSWORD || "",
+  codeforcesCookie: process.env.CODEFORCES_COOKIE || "",
 };
 
 if (!env.jwtAccessSecret) {

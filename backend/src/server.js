@@ -9,7 +9,7 @@ async function start() {
 
   try {
     await prisma.$connect();
-    await app.listen({ port: env.port, host: "0.0.0.0" });
+    await app.listen({ port: env.port, host: "localhost" });
 
     const io = new Server(app.server, {
       cors: {

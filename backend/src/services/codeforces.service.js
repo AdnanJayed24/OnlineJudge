@@ -64,6 +64,21 @@ class CookieJar {
     this.cookies = new Map();
   }
 
+  addFromRawCookieHeader(rawCookie) {
+    String(rawCookie || "")
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((pair) => {
+        const eqIndex = pair.indexOf("=");
+        if (eqIndex < 1) return;
+        const name = pair.slice(0, eqIndex).trim();
+        const value = pair.slice(eqIndex + 1).trim();
+        if (!name || !value) return;
+        this.cookies.set(name, value);
+      });
+  }
+
   addFromResponse(response) {
     const list = toCookieList(response);
     list.forEach((item) => {
@@ -118,6 +133,35 @@ async function requestCodeforces(pathname, options = {}) {
     throw new Error(`CODEFORCES_HTTP_${response.status}:${text.slice(0, 120)}`);
   }
   return response;
+}
+
+async function validateAuthenticatedSession(jar) {
+  const response = await requestCodeforces("/settings/general", {
+    jar,
+    expectedStatus: [200, 302],
+  });
+  if (response.status === 302) {
+    const location = String(response.headers.get("location") || "");
+    if (location.includes("/enter")) {
+      throw new Error("CODEFORCES_SESSION_INVALID");
+    }
+  }
+}
+
+async function setupCodeforcesSession(jar) {
+  if (env.codeforcesCookie) {
+    jar.addFromRawCookieHeader(env.codeforcesCookie);
+    await validateAuthenticatedSession(jar);
+    return "cookie";
+  }
+
+  if (!env.codeforcesPassword || !env.codeforcesHandleOrEmail) {
+    throw new Error("CODEFORCES_CREDENTIALS_MISSING");
+  }
+
+  await loginCodeforces(jar);
+  await validateAuthenticatedSession(jar);
+  return "login";
 }
 
 async function loginCodeforces(jar) {
@@ -348,12 +392,12 @@ async function pollCodeforcesVerdict({ submissionId, externalSubmissionId }) {
 }
 
 async function submitToCodeforces({ submission, executionMeta = {}, logger }) {
-  if (!env.codeforcesHandle || !env.codeforcesPassword || !env.codeforcesHandleOrEmail) {
+  if (!env.codeforcesHandle) {
     return {
       state: "final",
       status: "RUNTIME_ERROR",
       externalVerdict: "CREDENTIALS_MISSING",
-      errorReason: "CODEFORCES_CREDENTIALS_MISSING",
+      errorReason: "CODEFORCES_HANDLE_MISSING",
     };
   }
 
@@ -391,7 +435,7 @@ async function submitToCodeforces({ submission, executionMeta = {}, logger }) {
   if (!externalSubmissionId) {
     try {
       const jar = new CookieJar();
-      await loginCodeforces(jar);
+      const authMode = await setupCodeforcesSession(jar);
       const createdExternalId = await submitSolutionToCodeforces({
         jar,
         contestId: parsed.contestId,
@@ -401,7 +445,11 @@ async function submitToCodeforces({ submission, executionMeta = {}, logger }) {
       });
 
       logger.info(
-        { submissionId: submission.id, externalSubmissionId: createdExternalId },
+        {
+          submissionId: submission.id,
+          externalSubmissionId: createdExternalId,
+          authMode,
+        },
         "codeforces submission created"
       );
 
@@ -428,6 +476,13 @@ async function submitToCodeforces({ submission, executionMeta = {}, logger }) {
   });
 }
 
+async function checkCodeforcesSession() {
+  const jar = new CookieJar();
+  const mode = await setupCodeforcesSession(jar);
+  return { ok: true, mode };
+}
+
 module.exports = {
   submitToCodeforces,
+  checkCodeforcesSession,
 };
