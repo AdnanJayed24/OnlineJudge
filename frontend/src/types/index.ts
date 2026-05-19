@@ -34,9 +34,18 @@ export interface Problem {
   _count?: { submissions: number };
 }
 
+export type TestCaseStatus =
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'PASSED'
+  | 'FAILED'
+  | 'RUNTIME_ERROR'
+  | 'COMPILATION_ERROR'
+  | 'TIME_LIMIT_EXCEEDED';
+
 export interface TestDetail {
   index: number;
-  status: 'QUEUED' | 'RUNNING' | 'PASSED' | 'FAILED' | 'RUNTIME_ERROR' | 'COMPILATION_ERROR';
+  status: TestCaseStatus;
 }
 
 export interface SubmissionResult {

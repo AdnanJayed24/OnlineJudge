@@ -4,6 +4,8 @@ import { register, login, logout } from '../services/auth.service';
 import { verifyRefresh, signAccess } from '../lib/jwt';
 import { prisma } from '../db/prisma';
 
+const USER_SELECT = { id: true, email: true, username: true, role: true } as const;
+
 export async function registerHandler(req: FastifyRequest, reply: FastifyReply) {
   const { email, username, password } = req.body as { email: string; username: string; password: string };
   try {
@@ -39,7 +41,9 @@ export async function logoutHandler(req: FastifyRequest, reply: FastifyReply) {
 
 export async function meHandler(req: FastifyRequest, reply: FastifyReply) {
   if (!req.userId) return reply.status(401).send({ error: 'Unauthorized' });
-  return { id: req.userId, role: req.userRole };
+  const user = await prisma.user.findUnique({ where: { id: req.userId }, select: USER_SELECT });
+  if (!user) return reply.status(401).send({ error: 'Unauthorized' });
+  return user;
 }
 
 export async function refreshHandler(req: FastifyRequest, reply: FastifyReply) {

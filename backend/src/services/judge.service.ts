@@ -4,14 +4,29 @@ import { pistonRun, type Language } from '../lib/piston';
 import { runCFJudge } from './cf-judge.service';
 import { env } from '../config/env';
 
+// Strip trailing whitespace from each line, then trim the whole output.
+// Handles CRLF, trailing spaces, and blank trailing lines consistently.
 function normalize(s: string): string {
-  return String(s ?? '').trim().replace(/\r\n/g, '\n');
+  return String(s ?? '')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
+    .trim();
+}
+
+// Single persistent publisher reused across all judge calls.
+let _publisher: Redis | null = null;
+function getPublisher(): Redis {
+  if (!_publisher) {
+    _publisher = new Redis(env.REDIS_URL);
+    _publisher.on('error', (err) => console.error('[publisher] redis error', err));
+  }
+  return _publisher;
 }
 
 async function publishUpdate(submissionId: number): Promise<void> {
-  const pub = new Redis(env.REDIS_URL);
-  await pub.publish('submission:updated', JSON.stringify({ submissionId }));
-  await pub.quit();
+  await getPublisher().publish('submission:updated', JSON.stringify({ submissionId }));
 }
 
 // ── Dispatcher ───────────────────────────────────────────────────────────────
@@ -39,7 +54,8 @@ async function runPistonJudge(submissionId: number): Promise<void> {
   });
   if (!submission) return;
 
-  const testcases = submission.problem?.testcases ?? [];
+  const testcases   = submission.problem?.testcases ?? [];
+  const timeLimitMs = submission.problem?.timeLimitMs ?? 2000;
   const details: { index: number; status: string }[] = testcases.map((_, i) => ({
     index: i + 1,
     status: 'QUEUED',
@@ -52,7 +68,7 @@ async function runPistonJudge(submissionId: number): Promise<void> {
   });
   await publishUpdate(submissionId);
 
-  let verdict = 'ACCEPTED';
+  let verdict    = 'ACCEPTED';
   const startedAt = Date.now();
 
   for (let i = 0; i < testcases.length; i++) {
@@ -67,9 +83,12 @@ async function runPistonJudge(submissionId: number): Promise<void> {
 
     let tcStatus: string;
     try {
-      const timeLimitMs = submission.problem?.timeLimitMs ?? 2000;
-      console.log(`[judge] tc=${i + 1} lang=${submission.language} timeLimitMs=${timeLimitMs}`);
-      const result = await pistonRun(submission.language as Language, submission.sourceCode, tc.input, timeLimitMs);
+      const result = await pistonRun(
+        submission.language as Language,
+        submission.sourceCode,
+        tc.input,
+        timeLimitMs,
+      );
 
       if (result.compilationError) {
         tcStatus = 'COMPILATION_ERROR';

@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const BASE = import.meta.env.VITE_API_BASE as string;
+
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: BASE,
   withCredentials: true,
 });
 
@@ -18,7 +20,7 @@ api.interceptors.response.use(
 
     if (!refreshing) {
       refreshing = axios
-        .post('http://localhost:3000/api/auth/refresh', {}, { withCredentials: true })
+        .post(`${BASE}/auth/refresh`, {}, { withCredentials: true })
         .then(() => { refreshing = null; })
         .catch((e) => { refreshing = null; return Promise.reject(e); });
     }
@@ -27,7 +29,6 @@ api.interceptors.response.use(
       await refreshing;
       return api(original);
     } catch {
-      // refresh failed — let caller handle the 401
       return Promise.reject(error);
     }
   },

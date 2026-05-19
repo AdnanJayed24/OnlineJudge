@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -125,8 +125,8 @@ function TestcaseRow({
 }
 
 export default function CreateProblem() {
-  const { user }   = useAuth();
-  const navigate   = useNavigate();
+  const { user, loading } = useAuth();
+  const navigate          = useNavigate();
 
   const [title, setTitle]               = useState('');
   const [slug, setSlug]                 = useState('');
@@ -145,13 +145,8 @@ export default function CreateProblem() {
   const [submitting, setSubmitting]     = useState(false);
   const [error, setError]               = useState('');
 
-  if (!user || user.role !== 'admin') {
-    return (
-      <div className="max-w-lg mx-auto px-4 py-20 text-center">
-        <p className="text-gray-500 dark:text-gray-400 text-sm">Admin access required.</p>
-      </div>
-    );
-  }
+  if (loading) return null;
+  if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
 
   function autoSlug(t: string) {
     return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
