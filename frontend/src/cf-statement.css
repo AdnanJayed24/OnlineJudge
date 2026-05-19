@@ -1,0 +1,181 @@
+/* Styles for Codeforces problem statement HTML extracted from CF pages */
+
+.cf-statement .problem-statement {
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.cf-statement .header {
+  display: none; /* We show our own title/meta */
+}
+
+.cf-statement .section-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: inherit;
+}
+
+.cf-statement p {
+  margin-bottom: 0.75rem;
+}
+
+.cf-statement .input-specification,
+.cf-statement .output-specification {
+  margin-top: 1rem;
+}
+
+.cf-statement .input-specification .section-title,
+.cf-statement .output-specification .section-title {
+  color: #4f46e5;
+}
+
+.dark .cf-statement .input-specification .section-title,
+.dark .cf-statement .output-specification .section-title {
+  color: #818cf8;
+}
+
+.cf-statement .sample-tests {
+  margin-top: 1.25rem;
+}
+
+.cf-statement .sample-tests .section-title {
+  color: #4f46e5;
+}
+
+.dark .cf-statement .sample-tests .section-title {
+  color: #818cf8;
+}
+
+.cf-statement .sample-test {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cf-statement .input,
+.cf-statement .output {
+  flex: 1;
+  min-width: 8rem;
+}
+
+.cf-statement .input .title,
+.cf-statement .output .title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.04em;
+}
+
+.cf-statement .input pre,
+.cf-statement .output pre {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
+.dark .cf-statement .input pre,
+.dark .cf-statement .output pre {
+  background: #1f2937;
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+.cf-statement .note {
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid #6366f1;
+  background: #eef2ff;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.dark .cf-statement .note {
+  background: #1e1b4b30;
+  border-color: #818cf8;
+}
+
+.cf-statement .note .section-title {
+  color: #4f46e5;
+}
+
+.dark .cf-statement .note .section-title {
+  color: #818cf8;
+}
+
+.cf-statement img {
+  max-width: 100%;
+  height: auto;
+}
+
+.cf-statement table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.cf-statement table td,
+.cf-statement table th {
+  border: 1px solid #d1d5db;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.dark .cf-statement table td,
+.dark .cf-statement table th {
+  border-color: #374151;
+}
+
+/* LeetCode HTML content styles */
+.cf-statement pre {
+  background: #f3f4f6;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  margin: 0.75rem 0;
+}
+
+.dark .cf-statement pre {
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+.cf-statement code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8em;
+  background: #f3f4f6;
+  padding: 0.1em 0.3em;
+  border-radius: 0.25rem;
+}
+
+.dark .cf-statement code {
+  background: #374151;
+  color: #e5e7eb;
+}
+
+.cf-statement ul,
+.cf-statement ol {
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.cf-statement li {
+  margin-bottom: 0.25rem;
+}
+
+.cf-statement strong {
+  font-weight: 600;
+}
+
+.cf-statement sup {
+  font-size: 0.7em;
+}
