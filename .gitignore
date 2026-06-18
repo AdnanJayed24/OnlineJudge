@@ -40,6 +40,13 @@ backend/prisma/dev.db
 backend/prisma/*.db
 backend/prisma/*.db-journal
 
+# ── Go (backend-go) ───────────────────────────────────────────────────────────
+backend-go/server
+backend-go/server.exe
+backend-go/.env
+backend-go/.env.*
+!backend-go/.env.example
+
 # ── Misc ──────────────────────────────────────────────────────────────────────
 *.tmp
 *.temp

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { io, type Socket } from 'socket.io-client';
 import type { Submission } from '../types';
 
 const WS_URL = import.meta.env.VITE_WS_URL as string;
@@ -8,17 +7,28 @@ export function useSubmissionSocket(
   submissionId: number | null,
   onUpdate: (sub: Submission) => void,
 ) {
-  const socketRef = useRef<Socket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (!submissionId) return;
 
-    const socket = io(WS_URL, { withCredentials: true });
-    socketRef.current = socket;
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
 
-    socket.emit('join:submission', submissionId);
-    socket.on('submission:update', onUpdate);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'join', submissionId }));
+    };
 
-    return () => { socket.disconnect(); socketRef.current = null; };
+    ws.onmessage = (event) => {
+      try {
+        const { type, data } = JSON.parse(event.data);
+        if (type === 'update') onUpdate(data as Submission);
+      } catch { /* ignore malformed messages */ }
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
   }, [submissionId, onUpdate]);
 }
