@@ -19,31 +19,34 @@ type User struct {
 func (User) TableName() string { return "users" }
 
 type Problem struct {
-	ID            int            `gorm:"column:id;primaryKey;autoIncrement"    json:"id"`
-	Title         string         `gorm:"column:title"                          json:"title"`
-	Slug          string         `gorm:"column:slug;uniqueIndex"               json:"slug"`
-	Statement     string         `gorm:"column:statement"                      json:"statement"`
-	InputFormat   string         `gorm:"column:input_format;default:''"        json:"inputFormat"`
-	OutputFormat  string         `gorm:"column:output_format;default:''"       json:"outputFormat"`
-	Note          string         `gorm:"column:note;default:''"                json:"note"`
-	Difficulty    string         `gorm:"column:difficulty;default:medium"      json:"difficulty"`
-	Tags          pq.StringArray `gorm:"column:tags;type:text[]"               json:"tags"`
-	Source        string         `gorm:"column:source;default:local"           json:"source"`
-	CfContestId   *int           `gorm:"column:cf_contest_id"                  json:"cfContestId"`
-	CfIndex       *string        `gorm:"column:cf_index"                       json:"cfIndex"`
-	Rating        *int           `gorm:"column:rating"                         json:"rating"`
-	ExternalUrl   *string        `gorm:"column:external_url"                   json:"externalUrl"`
-	LcSlug        *string        `gorm:"column:lc_slug;uniqueIndex"            json:"lcSlug"`
-	LcFrontendId  *int           `gorm:"column:lc_frontend_id"                 json:"lcFrontendId"`
-	TimeLimitMs   int            `gorm:"column:time_limit_ms;default:2000"     json:"timeLimitMs"`
-	MemoryLimitMb int            `gorm:"column:memory_limit_mb;default:256"    json:"memoryLimitMb"`
-	CreatedBy     *int           `gorm:"column:created_by"                     json:"createdBy,omitempty"`
-	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime"      json:"createdAt"`
-	Testcases     []Testcase     `gorm:"foreignKey:ProblemID"                  json:"testcases,omitempty"`
-	Submissions   []Submission   `gorm:"foreignKey:ProblemID"                  json:"-"`
+	ID            int            `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	Title         string         `gorm:"column:title"                       json:"title"`
+	Slug          string         `gorm:"column:slug;uniqueIndex"            json:"slug"`
+	Statement     string         `gorm:"column:statement"                   json:"statement"`
+	InputFormat   string         `gorm:"column:input_format;default:''"     json:"inputFormat"`
+	OutputFormat  string         `gorm:"column:output_format;default:''"    json:"outputFormat"`
+	Note          string         `gorm:"column:note;default:''"             json:"note"`
+	Difficulty    string         `gorm:"column:difficulty;default:medium"   json:"difficulty"`
+	Tags          pq.StringArray `gorm:"column:tags;type:text[]"            json:"tags"`
+	TimeLimitMs   int            `gorm:"column:time_limit_ms;default:2000"  json:"timeLimitMs"`
+	MemoryLimitMb int            `gorm:"column:memory_limit_mb;default:256" json:"memoryLimitMb"`
+	CreatedBy     *int           `gorm:"column:created_by"                  json:"createdBy,omitempty"`
+	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime"   json:"createdAt"`
+	Testcases     []Testcase     `gorm:"foreignKey:ProblemID"               json:"testcases,omitempty"`
 }
 
 func (Problem) TableName() string { return "problems" }
+
+type Testcase struct {
+	ID             int       `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	ProblemID      int       `gorm:"column:problem_id;index"            json:"problemId,omitempty"`
+	Input          string    `gorm:"column:input"                       json:"input"`
+	ExpectedOutput string    `gorm:"column:expected_output"             json:"expectedOutput,omitempty"`
+	IsHidden       bool      `gorm:"column:is_hidden;default:true"      json:"isHidden"`
+	CreatedAt      time.Time `gorm:"column:created_at;autoCreateTime"   json:"createdAt,omitempty"`
+}
+
+func (Testcase) TableName() string { return "testcases" }
 
 type Submission struct {
 	ID         int               `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
@@ -58,17 +61,6 @@ type Submission struct {
 }
 
 func (Submission) TableName() string { return "submissions" }
-
-type Testcase struct {
-	ID             int       `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	ProblemID      int       `gorm:"column:problem_id;index"            json:"problemId,omitempty"`
-	Input          string    `gorm:"column:input"                       json:"input"`
-	ExpectedOutput string    `gorm:"column:expected_output"             json:"expectedOutput,omitempty"`
-	IsHidden       bool      `gorm:"column:is_hidden;default:true"      json:"isHidden,omitempty"`
-	CreatedAt      time.Time `gorm:"column:created_at;autoCreateTime"   json:"createdAt,omitempty"`
-}
-
-func (Testcase) TableName() string { return "testcases" }
 
 type SubmissionResult struct {
 	ID           int            `gorm:"column:id;primaryKey;autoIncrement" json:"id"`

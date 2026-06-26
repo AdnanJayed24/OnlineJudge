@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"time"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"onlinejudge/internal/db"
-	"onlinejudge/internal/lib"
+	"onlinejudge/internal/judge"
 	"onlinejudge/internal/models"
 	"onlinejudge/internal/rdb"
 )
@@ -29,18 +28,6 @@ func toJSON(v interface{}) datatypes.JSON {
 }
 
 func RunJudge(ctx context.Context, submissionID int) error {
-	var sub models.Submission
-	if err := db.DB.Preload("Problem").Where("id = ?", submissionID).First(&sub).Error; err != nil {
-		return err
-	}
-	if sub.Problem != nil && sub.Problem.Source == "codeforces" &&
-		sub.Problem.CfContestId != nil && sub.Problem.CfIndex != nil {
-		return RunCFJudge(ctx, submissionID, *sub.Problem.CfContestId, *sub.Problem.CfIndex)
-	}
-	return runPistonJudge(ctx, submissionID)
-}
-
-func runPistonJudge(ctx context.Context, submissionID int) error {
 	db.DB.Model(&models.Submission{}).Where("id = ?", submissionID).Update("status", "RUNNING")
 	rdb.Publish(ctx, submissionID)
 
@@ -60,6 +47,10 @@ func runPistonJudge(ctx context.Context, submissionID int) error {
 	if timeLimitMs == 0 {
 		timeLimitMs = 2000
 	}
+	memMb := sub.Problem.MemoryLimitMb
+	if memMb == 0 {
+		memMb = 256
+	}
 
 	type tcDetail struct {
 		Index  int    `json:"index"`
@@ -74,15 +65,14 @@ func runPistonJudge(ctx context.Context, submissionID int) error {
 	rdb.Publish(ctx, submissionID)
 
 	verdict := "ACCEPTED"
-	startedAt := time.Now()
+	totalMs := 0
 
 	for i, tc := range testcases {
 		details[i].Status = "RUNNING"
-		ms := int(time.Since(startedAt).Milliseconds())
-		updateResult(submissionID, "RUNNING", &ms, toJSON(details))
+		updateResult(submissionID, "RUNNING", &totalMs, toJSON(details))
 		rdb.Publish(ctx, submissionID)
 
-		result, err := lib.PistonRun(sub.Language, sub.SourceCode, tc.Input, timeLimitMs)
+		result, err := judge.Run(sub.Language, sub.SourceCode, tc.Input, timeLimitMs, memMb)
 		var tcStatus string
 		if err != nil {
 			tcStatus = "RUNTIME_ERROR"
@@ -103,9 +93,11 @@ func runPistonJudge(ctx context.Context, submissionID int) error {
 			verdict = "WRONG_ANSWER"
 		}
 
+		if result != nil {
+			totalMs += result.RuntimeMs
+		}
 		details[i].Status = tcStatus
-		ms = int(time.Since(startedAt).Milliseconds())
-		updateResult(submissionID, "RUNNING", &ms, toJSON(details))
+		updateResult(submissionID, "RUNNING", &totalMs, toJSON(details))
 		rdb.Publish(ctx, submissionID)
 
 		if verdict != "ACCEPTED" {
@@ -113,8 +105,7 @@ func runPistonJudge(ctx context.Context, submissionID int) error {
 		}
 	}
 
-	ms := int(time.Since(startedAt).Milliseconds())
-	upsertResult(submissionID, verdict, &ms, toJSON(details))
+	upsertResult(submissionID, verdict, &totalMs, toJSON(details))
 	db.DB.Model(&models.Submission{}).Where("id = ?", submissionID).Update("status", verdict)
 	rdb.Publish(ctx, submissionID)
 	return nil
@@ -138,8 +129,8 @@ func updateResult(submissionID int, verdict string, runtimeMs *int, details data
 	db.DB.Model(&models.SubmissionResult{}).
 		Where("submission_id = ?", submissionID).
 		Updates(map[string]interface{}{
-			"verdict":     verdict,
-			"runtime_ms":  runtimeMs,
+			"verdict":      verdict,
+			"runtime_ms":   runtimeMs,
 			"details_json": details,
 		})
 }

@@ -83,6 +83,7 @@ export default function ProblemPage() {
   const [panel, setPanel]                 = useState<Panel>({ type: 'idle' });
   const [stdin, setStdin]                 = useState('');
   const [showStdin, setShowStdin]         = useState(false);
+  const [deleting, setDeleting]           = useState(false);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [loadingSubs, setLoadingSubs]     = useState(false);
 
@@ -159,7 +160,27 @@ export default function ProblemPage() {
         <div className="px-6 py-5">
 
           {/* Title + limits */}
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">{problem.title}</h1>
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{problem.title}</h1>
+            {user?.role === 'admin' && (
+              <button
+                disabled={deleting}
+                onClick={async () => {
+                  if (!window.confirm(`Delete "${problem.title}"? This cannot be undone.`)) return;
+                  setDeleting(true);
+                  try {
+                    await api.delete(`/problems/${problem.slug}`);
+                    navigate('/');
+                  } catch {
+                    setDeleting(false);
+                  }
+                }}
+                className="shrink-0 text-xs px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-5">
             <span className={`font-semibold capitalize ${DIFF_COLOR[problem.difficulty] ?? ''}`}>
               {problem.difficulty}

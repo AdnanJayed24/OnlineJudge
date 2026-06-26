@@ -80,7 +80,7 @@ func main() {
 	problems.GET("", middleware.OptionalAuth(), handlers.ListProblems)
 	problems.GET("/:slug", handlers.GetProblem)
 	problems.POST("", middleware.Authenticate(), handlers.CreateProblem)
-	problems.POST("/fetch", middleware.Authenticate(), handlers.FetchProblem)
+	problems.DELETE("/:slug", middleware.Authenticate(), handlers.DeleteProblem)
 
 	// Submission routes
 	subs := api.Group("/submissions")
@@ -89,13 +89,8 @@ func main() {
 	subs.GET("/:id", handlers.GetSubmission)
 	subs.GET("", handlers.ListSubmissions)
 
-	// Run route
+	// Run route (custom input, not judged)
 	api.POST("/run", middleware.Authenticate(), handlers.RunCode)
-
-	// Codeforces admin routes
-	cf := api.Group("/codeforces")
-	cf.POST("/sync/contest", middleware.Authenticate(), handlers.SyncContest)
-	cf.POST("/sync/problemset", middleware.Authenticate(), handlers.SyncProblemset)
 
 	// 404 handler
 	r.NoRoute(func(c *gin.Context) {

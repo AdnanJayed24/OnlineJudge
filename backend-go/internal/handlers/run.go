@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"onlinejudge/internal/lib"
+	"onlinejudge/internal/judge"
 )
 
 func RunCode(c *gin.Context) {
@@ -18,7 +18,7 @@ func RunCode(c *gin.Context) {
 		return
 	}
 
-	result, err := lib.PistonRun(body.Language, body.SourceCode, body.Stdin, 5000)
+	result, err := judge.Run(body.Language, body.SourceCode, body.Stdin, 5000, 256)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
